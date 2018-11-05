@@ -8,5 +8,10 @@
 		<set class-path="bin/" />
 		<set class-name="template.CentralizedTemplate" ></set>
 	</agent>
+	<agent name="centralized-main">
+		<set class-path="bin/" />
+		<set class-name="template.Centralized_stochastic" ></set>
+	</agent>
+	
 	
 </agents>
