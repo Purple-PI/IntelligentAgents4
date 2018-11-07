@@ -42,16 +42,20 @@ public class Centralized_stochastic implements CentralizedBehavior {
     double cost;
     double nextcost;
     double bestcost;
-    List<Plan> bestPlans = new ArrayList<Plan>();
-    List<Plan> ultraPlans = new ArrayList<Plan>();
-    long number_iter = 0;
-    long number_iter_max = 10000;
+    List<Plan> bestPlans = new ArrayList<Plan>(); // bestplan for this path
+    List<Plan> ultraPlans = new ArrayList<Plan>(); // Bestplan overall
+    
     Hashtable<Integer, List<Act>> nextTask = new Hashtable<Integer, List<Act>>();
     Hashtable<Integer, List<Act>> nextTask_clone = new Hashtable<Integer, List<Act>>();
-    Hashtable<Act, Integer> time = new Hashtable<Act, Integer>();
-    List<Integer> LastMove = new ArrayList<Integer>();
-	long NUMBER_OF_SEARCH_STEP = 500000;
-    @Override
+	
+    
+    // CAN CHANGE THE NUMBERS
+    long NUMBER_OF_SEARCH_STEP = 500000; // number of computed plan
+    long number_iter = 0; 
+    long number_iter_max = 10000; // number of iteration with a same plan before restart 
+	
+	
+	@Override
     public void setup(Topology topology, TaskDistribution distribution,
             Agent agent) {
         
@@ -91,7 +95,7 @@ public class Centralized_stochastic implements CentralizedBehavior {
         
         
         
-        //List<Vehicle> variable = new ArrayList<Vehicle>();
+        
         
         
        
@@ -167,12 +171,12 @@ public class Centralized_stochastic implements CentralizedBehavior {
         {
 			Plan planVehicle= hashToPlan(vehicles.get(i), nextTask.get(i));
 			plans.add(planVehicle);
-			//System.out.println(planVehicle);
+			
         }		
         
                 
 		
-        
+        // Plans' cost for all vehicles
         while (plans.size() < vehicles.size()) {
             plans.add(Plan.EMPTY);
         }
@@ -193,7 +197,7 @@ public class Centralized_stochastic implements CentralizedBehavior {
         
         
         
-        
+        //OPIMIZATION = finding a better neigbour , if can't find after a number of iteration restart from initial solution
         nextTask = optimize( vehicles, taskList,plans);
         
 		
@@ -202,12 +206,13 @@ public class Centralized_stochastic implements CentralizedBehavior {
 		
         long time_end = System.currentTimeMillis();
         long duration = time_end - time_start;
-        System.out.println("The plan was generated in "+duration+" milliseconds. COST ULTRA_PLAN = "+bestcost +" COST BEST_PLAN = "+cost + "   Cost Last_Plan = "+ nextcost );
+        System.out.println("The plan was generated in "+duration+" milliseconds. COST BEST_PLAN = "+bestcost +" COST Actual Plan = "+cost + "   Cost neighbour = "+ nextcost );
 		
         
         
 		}
 		List<Plan> re;
+		//return the bestPLAN with the shortest distance
 		if(bestcost  > cost ) {re= ultraPlans;
 		bestcost = cost;}
 		else {re= bestPlans;}
@@ -222,7 +227,7 @@ public class Centralized_stochastic implements CentralizedBehavior {
         
     }
 
-
+    //For a vehicle's solution in the hashtable, return a plan
     private Plan hashToPlan(Vehicle vehicle,  List<Act> actions) {
         City current = vehicle.getCurrentCity();
         Plan plan = new Plan(current);
@@ -232,16 +237,16 @@ public class Centralized_stochastic implements CentralizedBehavior {
         for(int i =0 ; i < actions.size() ; i++)
         {
         	Act action =   actions.get(i);
-        	if(action.get_deliver() == false) { // if action is to pickup task
+        	if(action.get_deliver() == false) { // if action is to pickup task add city and pick up
         		
-        		for (City city : current.pathTo(action.get_task().pickupCity)) {
+        		for (City city : current.pathTo(action.get_task().pickupCity)) { 
                     plan.appendMove(city);
                 }
 
                 plan.appendPickup(action.get_task());
                 current = action.get_task().pickupCity;
         	}
-        	else { // if action is to deliver task
+        	else { // if action is to deliver task , add city and deliver task
         		
         		for (City city : current.pathTo(action.get_task().deliveryCity)) {
                     plan.appendMove(city);
@@ -261,8 +266,8 @@ public class Centralized_stochastic implements CentralizedBehavior {
     
     
     
-    
-    public void give( Task task,int v1, int v2) {//echange de tasks entre vehicle ce gfait par pair de tasks liées ( tasks liées ont la même tache mais un boolean up différent)
+    // transformation on the hashtable, take one task (2 actions) from a vehicle v1 and put it at the end of vehicle v2
+    public void give( Task task,int v1, int v2) {
     	List<Act> actions1 = nextTask_clone.get(v1);
     	List<Act> actions2 = nextTask_clone.get(v2);
     	int id1 = 0;
@@ -292,8 +297,7 @@ public class Centralized_stochastic implements CentralizedBehavior {
 		actions1.remove(act2);
     	actions2.add(act1);
 		actions1.remove(act1);
-    	//actions1.remove(act1);
-    	//actions1.remove(act2);
+   
     	
     	
     	
@@ -304,8 +308,8 @@ public class Centralized_stochastic implements CentralizedBehavior {
 
 	}
     
-    
-    public void swap( Act action1,Act action2,int v ) {//echange de action place in the same vehicle
+    // Swap the position of 2 actions in the vehicle's list of action
+    public void swap( Act action1,Act action2,int v ) {
     	List<Act> actions1 = nextTask_clone.get(v);
     	
     	int id1 = 0;
@@ -324,11 +328,11 @@ public class Centralized_stochastic implements CentralizedBehavior {
 	}
     
     
-  //condition qui assure que les tasks liées sont dans le même vehicle et dans le bon ordre
+    //constraints
     private boolean constraint(List<Vehicle> vehicles, Hashtable<Integer, List<Act>> nextTask_clone )
     {
     	
-    	boolean validation = true;
+    	boolean validation = true; // retrun false if one the constraint is not respected
     	for(int v =0; v < vehicles.size() ; v++) // for all vehicle
     	{
     		List<Act> actions = nextTask_clone.get(v);
@@ -342,7 +346,7 @@ public class Centralized_stochastic implements CentralizedBehavior {
     					if( i != j ) 
     					{// diff action
 	    					
-	    					
+	    					// check if action pick up is before action deliver
 	    					if(action1.get_deliver()  ) 
 	    					{ // if action1 is deliver
 	    						if(i<j) {swap(action1,action2,v);
@@ -359,11 +363,11 @@ public class Centralized_stochastic implements CentralizedBehavior {
 					}
     			}
     			
-    			//if(actions.get(i+1) == action1 ) {validation = false;}//condition 1
     			
     			
-    		if(action1.get_deliver()) {weight = weight - action1.get_task().weight;} // deliver
-    		else {weight = weight + action1.get_task().weight;} // pick up
+    		// make sure the vehicle is not overloaded during the sequence of action	
+    		if(action1.get_deliver()) {weight = weight - action1.get_task().weight;} // deliver, substract weight
+    		else {weight = weight + action1.get_task().weight;} // pick up , add weight
     		if(vehicles.get(v).capacity() < weight) // overcapacity
     		{
     			validation = false;
@@ -388,8 +392,11 @@ public class Centralized_stochastic implements CentralizedBehavior {
     
     private Hashtable<Integer, List<Act>>  optimize(List<Vehicle> vehicles, List<Task> taskList , List<Plan> plans ){
     	
-		
-		
+		//Do a random transformation
+		//If it is a solution , 
+    	//compute plan,
+    	//get cost
+    	//if cost is lower keep the plan.
     	
     	
     	
@@ -428,7 +435,7 @@ public class Centralized_stochastic implements CentralizedBehavior {
         
         
         
-        
+        // pick a random transformation
         Random rand = new Random();
       //here do transformation Next_clone = transf(next)
     	do {
@@ -472,6 +479,7 @@ public class Centralized_stochastic implements CentralizedBehavior {
 		
     }
     
+    // restart to the initial solution 
 private void restart(List<Vehicle> vehicles) {
 	int n = 0; 
 	cost = 200000;
@@ -499,6 +507,8 @@ private void restart(List<Vehicle> vehicles) {
 	}
 	nextTask_clone = (Hashtable<Integer, List<Act>>) nextTask.clone();
 }    
+
+// not used ( restart from a random solution )
 private void shuffle(List<Vehicle> vehicles) {
 	System.out.println("RESHUFFLE");
 	Random rand = new Random();
@@ -551,6 +561,8 @@ return weight;
 }
 }
 
+
+// class of action
 class Act{
 	private Task task;
 	private boolean deliver;
