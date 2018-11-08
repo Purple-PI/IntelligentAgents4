@@ -50,9 +50,9 @@ public class Centralized_stochastic implements CentralizedBehavior {
 	
     
     // CAN CHANGE THE NUMBERS
-    long NUMBER_OF_SEARCH_STEP = 500000; // number of computed plan
+    //long NUMBER_OF_SEARCH_STEP = 50000; // number of computed plan
     long number_iter = 0; 
-    long number_iter_max = 10000; // number of iteration with a same plan before restart 
+    long number_iter_max = 5000; // number of iteration with a same plan before restart 
 	
 	
 	@Override
@@ -84,8 +84,8 @@ public class Centralized_stochastic implements CentralizedBehavior {
         long time_start = System.currentTimeMillis();
         
         //INITIALIZATION
-        cost = 200000;
-        bestcost = 200000;
+        cost = 9999999;
+        bestcost = 9999999;
         while (bestPlans.size() < vehicles.size()) {
         	bestPlans.add(Plan.EMPTY);
         }
@@ -112,6 +112,7 @@ public class Centralized_stochastic implements CentralizedBehavior {
         //boolean = False => deliver
         //ListAct = [pickup_task0, deliver_task0,pickup_task1,deliver_task1......]
         for(int i = 0 ; i < taskList.size() ; i++)
+        	
         {	Task task = taskList.get(i);
         	listAct.add(new Act(task, false));
         	listAct.add(new Act(task, true));
@@ -136,22 +137,31 @@ public class Centralized_stochastic implements CentralizedBehavior {
         //Vehicle N : pickup_taskN,deliver_taskN
         
         int n = 0; 
+        int j = 0;
     	while(n < listAct.size() ) {
-    		for(int j = 0 ; j < vehicles.size() ; j++) {
-    			List<Act> act = nextTask.get(j);
-    			act.add(listAct.get(n));
-        		act.add(listAct.get(n+1));
-        		nextTask.put(j, act);
+    	
+    		while(listAct.get(n).get_task().weight > vehicles.get(j).capacity()) 
+    		{
+    			
         		
-
-        		n =  n + 2;
-        		if(n == listAct.size() ) {break;}
+        		if(j >= vehicles.size() - 1 ) {j = 0;}
+        		else {j = j + 1;}
+        		
+        		
         		        		
     		}
     		
-    		
+    		List<Act> act = nextTask.get(j);
+			act.add(listAct.get(n));
+    		act.add(listAct.get(n+1));
+    		nextTask.put(j, act);
+    		n =  n + 2;
+    		if(j >= vehicles.size() - 1 ) {j = 0;}
+    		else {j = j + 1;}
+    		if(n == listAct.size() ) {break;}
     		
     	}
+    	
     	
     	
     	
@@ -159,11 +169,15 @@ public class Centralized_stochastic implements CentralizedBehavior {
     	nextTask_clone = (Hashtable<Integer, List<Act>>) nextTask.clone();
     	
     	
+    	
         	
 		
 		
 		List<Plan> plans = new ArrayList<Plan>();
-		for(int k = 0 ; k< NUMBER_OF_SEARCH_STEP ; k++) {
+		long time_end = System.currentTimeMillis();
+        long duration = time_end - time_start;
+        
+		while(duration+100 < timeout_plan) {
 			
 		plans.clear();	
 		
@@ -204,8 +218,8 @@ public class Centralized_stochastic implements CentralizedBehavior {
 		
         
 		
-        long time_end = System.currentTimeMillis();
-        long duration = time_end - time_start;
+        time_end = System.currentTimeMillis();
+        duration = time_end - time_start;
         System.out.println("The plan was generated in "+duration+" milliseconds. COST BEST_PLAN = "+bestcost +" COST Actual Plan = "+cost + "   Cost neighbour = "+ nextcost );
 		
         
@@ -213,9 +227,9 @@ public class Centralized_stochastic implements CentralizedBehavior {
 		}
 		List<Plan> re;
 		//return the bestPLAN with the shortest distance
-		if(bestcost  > cost ) {re= ultraPlans;
+		if(bestcost  > cost ) {re= bestPlans;
 		bestcost = cost;}
-		else {re= bestPlans;}
+		else {re= ultraPlans;}
 		
 		System.out.println("FINAL PLAN COST: "+ bestcost );
         return re;
@@ -333,6 +347,7 @@ public class Centralized_stochastic implements CentralizedBehavior {
     {
     	
     	boolean validation = true; // retrun false if one the constraint is not respected
+    	
     	for(int v =0; v < vehicles.size() ; v++) // for all vehicle
     	{
     		List<Act> actions = nextTask_clone.get(v);
@@ -443,7 +458,7 @@ public class Centralized_stochastic implements CentralizedBehavior {
     			
     			int v1 = rand.nextInt(vehicles.size());
     			int v2 = rand.nextInt(vehicles.size());
-    			while(v1 == v2 || nextTask_clone.get(v1).size() == 2 ) {v1 = rand.nextInt(vehicles.size());
+    			while(v1 == v2 || nextTask_clone.get(v1).size() <= 2  ) {v1 = rand.nextInt(vehicles.size() );
     							v2 = rand.nextInt(vehicles.size());}// assure vehicle different
     			
     			int t = rand.nextInt(nextTask_clone.get(v1).size()); // pick random action in choosen vehicle
@@ -481,30 +496,42 @@ public class Centralized_stochastic implements CentralizedBehavior {
     
     // restart to the initial solution 
 private void restart(List<Vehicle> vehicles) {
-	int n = 0; 
-	cost = 200000;
+	int n = 0;
+	int k = 0;
+	cost = 9999999;
 	nextTask.clear();
 	for(int j = 0; j < vehicles.size() ; j++) {
     	List<Act> act = new ArrayList<Act>();
        
     	nextTask.put(j, act);
     }
+	 
+    
 	while(n < listAct.size() ) {
-		for(int j = 0 ; j < vehicles.size() ; j++) {
-			List<Act> act = nextTask.get(j);
-			act.add(listAct.get(n));
-    		act.add(listAct.get(n+1));
-    		nextTask.put(j, act);
+	
+		while(listAct.get(n).get_task().weight > vehicles.get(k).capacity()) 
+		{
+			
     		
-
-    		n =  n + 2;
-    		if(n == listAct.size() ) {break;}
+    		if(k >= vehicles.size() - 1 ) {k = 0;}
+    		else {k = k + 1;}
+    		
+    		
     		        		
 		}
 		
-		
+		List<Act> act = nextTask.get(k);
+		act.add(listAct.get(n));
+		act.add(listAct.get(n+1));
+		nextTask.put(k, act);
+		n =  n + 2;
+		if(k >= vehicles.size() - 1 ) {k = 0;}
+		else {k = k + 1;}
+		if(n == listAct.size() ) {break;}
 		
 	}
+	
+	
 	nextTask_clone = (Hashtable<Integer, List<Act>>) nextTask.clone();
 }    
 
